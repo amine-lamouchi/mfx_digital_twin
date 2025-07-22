@@ -8,8 +8,12 @@ def random_search(task, n_trials=100):
 
     for _ in range(n_trials):
         candidate = [np.random.uniform(low, high) for (low, high) in bounds]
-        task.set_dofs(candidate)
-        cost = task.evaluate_objective()
+        try:
+            task.set_dofs(candidate)
+            cost = task.evaluate_objective()
+        except Exception as e:
+            print(f"Random search trial {_} failed: {e}")
+            cost = float("inf")
 
         print(f"Random search trial {_} DoFs: {candidate}")
         print(f"Random search trial {_} cost: {cost}")
@@ -31,8 +35,12 @@ def grid_search(task, points_per_dim=5):
     best_dofs = None
     best_cost = float("inf")
     for i, candidate in enumerate(grid_points):
-        task.set_dofs(candidate)
-        cost = task.evaluate_objective()
+        try:
+            task.set_dofs(candidate)
+            cost = task.evaluate_objective()
+        except Exception as e:
+            print(f"Grid search trial {i} failed: {e}")
+            cost = float("inf")
         print(f"Grid search trial {i} DoFs: {candidate}")
         print(f"Grid search trial {i} cost: {cost}")
         print("--------------------------------")
@@ -54,8 +62,12 @@ def bayesian_optimization(task, n_calls=30):
     best_cost = float("inf")
     for i in range(n_calls):
         candidate = opt.ask()
-        task.set_dofs(candidate)
-        cost = task.evaluate_objective()
+        try:
+            task.set_dofs(candidate)
+            cost = task.evaluate_objective()
+        except Exception as e:
+            print(f"Bayesian optimization trial {i} failed: {e}")
+            cost = float("inf")
         opt.tell(candidate, cost)
         print(f"Bayesian optimization trial {i} DoFs: {candidate}")
         print(f"Bayesian optimization trial {i} cost: {cost}")
