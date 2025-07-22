@@ -43,3 +43,21 @@ class UndulatorPointingTask(AlignmentTask):
     def get_bounds(self):
         return [(-2.5e-6, 2.5e-6), (-2.5e-6, 2.5e-6)]
 
+class BeamSteeringTask(AlignmentTask):
+    def get_dofs(self):
+        return [self.sim.mr1l4_pitch.wm()]
+
+    def set_dofs(self, values):
+        self.sim.mr1l4_pitch.mvr(values[0])
+        self.sim.propagate()
+
+    def get_observation(self):
+        cx = self.sim.beamline.DG1_YAG.cx
+        return cx
+    
+    def evaluate_objective(self):
+        cx = self.get_observation()
+        return np.abs(cx)
+    
+    def get_bounds(self):
+        return [(-5e-6, 5e-6)]
