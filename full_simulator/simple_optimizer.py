@@ -11,8 +11,8 @@ def random_search(task, n_trials=100):
         task.set_dofs(candidate)
         cost = task.evaluate_objective()
 
-        print(f"Random trial {_} DoFs: {candidate}")
-        print(f"Random trial {_} cost: {cost}")
+        print(f"Random search trial {_} DoFs: {candidate}")
+        print(f"Random search trial {_} cost: {cost}")
         print("--------------------------------")
         
         if cost < best_cost:
@@ -33,8 +33,32 @@ def grid_search(task, points_per_dim=5):
     for i, candidate in enumerate(grid_points):
         task.set_dofs(candidate)
         cost = task.evaluate_objective()
-        print(f"Grid trial {i} DoFs: {candidate}")
-        print(f"Grid trial {i} cost: {cost}")
+        print(f"Grid search trial {i} DoFs: {candidate}")
+        print(f"Grid search trial {i} cost: {cost}")
+        print("--------------------------------")
+        if cost < best_cost:
+            best_cost = cost
+            best_dofs = candidate
+    return best_dofs, best_cost
+
+
+def bayesian_optimization(task, n_calls=30):
+    """Bayesian optimization using scikit-optimize (skopt) for the task interface."""
+    try:
+        from skopt import Optimizer
+    except ImportError:
+        raise ImportError("scikit-optimize (skopt) is required for bayesian_optimization. Install with 'pip install scikit-optimize'.")
+    bounds = task.get_bounds()
+    opt = Optimizer(dimensions=bounds, random_state=0)
+    best_dofs = None
+    best_cost = float("inf")
+    for i in range(n_calls):
+        candidate = opt.ask()
+        task.set_dofs(candidate)
+        cost = task.evaluate_objective()
+        opt.tell(candidate, cost)
+        print(f"Bayesian optimization trial {i} DoFs: {candidate}")
+        print(f"Bayesian optimization trial {i} cost: {cost}")
         print("--------------------------------")
         if cost < best_cost:
             best_cost = cost

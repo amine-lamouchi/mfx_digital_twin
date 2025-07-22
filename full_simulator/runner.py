@@ -1,6 +1,6 @@
 from lcls_beamline_toolbox.models import mfx
 from alignment_interface import UndulatorPointingTask
-from simple_optimizer import grid_search
+from simple_optimizer import random_search, grid_search, bayesian_optimization
 
 def main():
     # set up the simulator
@@ -11,7 +11,7 @@ def main():
     task = UndulatorPointingTask(mfx_sim)
 
     # run the optimizer
-    best_dofs, best_cost = grid_search(task, points_per_dim=5)
+    best_dofs, best_cost = bayesian_optimization(task, n_calls=30)
     print("Best DoFs:", best_dofs)
     print("Minimum Cost:", best_cost)
     print("--------------------------------")
