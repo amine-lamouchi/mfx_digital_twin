@@ -1,5 +1,10 @@
 import numpy as np
 import vonhamos_spectrometer as vh
+import matplotlib.pyplot as plt
+
+# Large finite penalty value for failed propagations
+LARGE_PENALTY = 1e6
+
 
 class AlignmentTask:
     """Base class for all alignment tasks."""
@@ -47,7 +52,7 @@ class UndulatorPointingTask(AlignmentTask):
 
     def evaluate_objective(self):
         if getattr(self, "_propagation_failed", False):
-            return float("inf")     
+            return LARGE_PENALTY     
         cx, cy = self.get_observation()
         return np.sqrt(cx**2 + cy**2)
 
@@ -55,8 +60,9 @@ class UndulatorPointingTask(AlignmentTask):
         return [(-2.5e-6, 2.5e-6), (-2.5e-6, 2.5e-6)]
     
     def save_diagnostic(self, index, output_dir):
-        fig = self.sim.beamline.hx2_shared.view_beam()
-        fig.savefig(f"{output_dir}/hx2_shared_{index}.png")
+        self.sim.beamline.hx2_shared.view_beam()
+        plt.savefig(f"{output_dir}/hx2_shared_{index}.png")
+        plt.close()
 
 
 class BeamSteeringTask(AlignmentTask):
@@ -79,16 +85,17 @@ class BeamSteeringTask(AlignmentTask):
     
     def evaluate_objective(self):
         if getattr(self, "_propagation_failed", False):
-            return float("inf")     
+            return LARGE_PENALTY     
         cx = self.get_observation()
         return np.abs(cx)
     
     def get_bounds(self):
-        return [(-5e-6, 5e-6)]
+        return [(-2e-6, 2e-6)]
     
     def save_diagnostic(self, index, output_dir):
-        fig = self.sim.beamline.DG1_YAG.view_beam()
-        fig.savefig(f"{output_dir}/DG1_YAG_{index}.png")
+        self.sim.beamline.DG1_YAG.view_beam()
+        plt.savefig(f"{output_dir}/DG1_YAG_{index}.png")
+        plt.close()
 
 
 class TransfocatorTask(AlignmentTask):
@@ -129,7 +136,7 @@ class TransfocatorTask(AlignmentTask):
 
     def evaluate_objective(self):
         if getattr(self, "_propagation_failed", False):
-            return float("inf")     
+            return LARGE_PENALTY     
         cx, cy, wx, wy = self.get_observation()
         return np.sqrt(cx**2 + cy**2) + np.abs(wx - wy)
 
@@ -137,8 +144,9 @@ class TransfocatorTask(AlignmentTask):
         return [(-5e-6, 5e-6)] * 2 * self.n_crls
     
     def save_diagnostic(self, index, output_dir):
-        fig = self.sim.beamline.DG2_YAG.view_beam()
-        fig.savefig(f"{output_dir}/DG2_YAG_{index}.png")
+        self.sim.beamline.DG2_YAG.view_beam()
+        plt.savefig(f"{output_dir}/DG2_YAG_{index}.png")
+        plt.close()
 
 
 class VonHamosTask(AlignmentTask):
@@ -197,9 +205,9 @@ class VonHamosTask(AlignmentTask):
 
     def evaluate_objective(self):
         if self._propagation_failed:
-            return float("inf")
+            return LARGE_PENALTY
         cx, cy, dx, dy = self.get_observation()
-        return np.sqrt(cx**2 + cy**2) + abs(dx)
+        return np.sqrt(cx**2 + cy**2) + abs(dx) + abs(dy)
 
     def get_bounds(self):
         return self.bounds
