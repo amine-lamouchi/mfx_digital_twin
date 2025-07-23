@@ -5,36 +5,38 @@ from history_logger import HistoryLogger
 from utils import make_experiment_dir
 
 def main():
-    # set up the simulator
-    print("Setting up MFX simulator...")
-    mfx_sim = mfx.MFX(E0=9000, N=256)
-    mfx_sim.propagate()
-    print("MFX simulator ready!")
 
-    # choose the task and optimizer
-    task = VonHamosTask(mfx_sim)
-    task_name = "vonhamos"
-    optimizer_name = "bayesian"
+    tasks = [
+        (UndulatorPointingTask, "Undulator Pointing"),
+        (BeamSteeringTask, "Beam Steering"),
+        (TransfocatorTask, "Transfocator"),
+        (VonHamosTask, "Von Hamos Alignment")
+    ]
 
-    # set up experiment logging
-    outdir = make_experiment_dir(task_name, optimizer_name)
-    logger = HistoryLogger(outdir, save_images=True, real_time_csv=True)
-    print(f"Logging to: {outdir}")
+    optimizer_name = "Bayesian Optimization"
 
-    # run the optimizer with logging
-    print(f"Starting {optimizer_name} optimization...")
-    best_dofs, best_cost = bayesian_optimization(task, n_calls=30, logger=logger)
+    for TaskClass, task_name in tasks:
 
-    # print results and summary
-    print("\n" + "="*50)
-    print("OPTIMIZATION COMPLETE")
-    print("="*50)
-    print("Best DoFs:", best_dofs)
-    print("Minimum Cost:", best_cost)
-    
-    # Print detailed summary from logger
-    logger.print_summary()
-    print("="*50)
+        print(f"\n{'='*60}\nRunning {task_name} with {optimizer_name}\n{'='*60}")
+
+        mfx_sim = mfx.MFX(E0=9000, N=256)
+        mfx_sim.propagate()
+        task = TaskClass(mfx_sim)
+        outdir = make_experiment_dir(task_name, optimizer_name)
+        logger = HistoryLogger(outdir, save_images=False, real_time_csv=True, task_name=task_name, method_name=optimizer_name)
+        print(f"Logging to: {outdir}")
+        
+        best_dofs, best_cost = bayesian_optimization(task, n_calls=100, logger=logger)
+        print("\n" + "="*50)
+        print("OPTIMIZATION COMPLETE")
+        print("="*50)
+        print("Best DoFs:", best_dofs)
+        print("Minimum Cost:", best_cost)
+        logger.print_summary()
+        print("="*50)
+
+        task.set_dofs(best_dofs)
+        task.save_diagnostic("best", outdir)
 
 if __name__ == "__main__":
     main()
