@@ -1,15 +1,18 @@
 import os
 import csv
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 import numpy as np
 
 class HistoryLogger:
-    def __init__(self, output_dir, save_images=True, real_time_csv=True):
+    def __init__(self, output_dir, save_images=True, real_time_csv=True, task_name=None, method_name=None):
         self.output_dir = output_dir
         self.save_images = save_images
         self.real_time_csv = real_time_csv
         self.history = []
         self.header_written = False
+        self.task_name = task_name
+        self.method_name = method_name
         os.makedirs(self.output_dir, exist_ok=True)
         self.csv_path = os.path.join(self.output_dir, "history.csv")
         
@@ -61,7 +64,6 @@ class HistoryLogger:
             print(f"[HistoryLogger] Failed to write to CSV: {e}")
 
     def save_csv(self):
-        """Save all history to CSV file (for non-real-time mode)."""
         if not self.history:
             print("[HistoryLogger] No history to save")
             return
@@ -76,8 +78,7 @@ class HistoryLogger:
         except Exception as e:
             print(f"[HistoryLogger] Failed to save CSV: {e}")
 
-    def plot_cost_history(self, filename="history_plot.png"):
-        """Plot the cost history."""
+    def plot_cost_history(self, filename="history_plot.png", task_name=None, method_name=None, penalty_threshold=1e6):
         if not self.history:
             print("[HistoryLogger] No history to plot")
             return
@@ -85,13 +86,50 @@ class HistoryLogger:
         try:
             costs = [entry["cost"] for entry in self.history]
             trials = [entry["trial"] for entry in self.history]
-            
+
+            # Filter out penalty values for scatter plot
+            scatter_trials = [t for t, c in zip(trials, costs) if c < penalty_threshold and np.isfinite(c)]
+            scatter_costs  = [c for c in costs if c < penalty_threshold and np.isfinite(c)]
+
+            # Compute best-so-far ignoring penalty values
+            best_so_far = []
+            current_best = np.inf
+            for c in costs:
+                if c < penalty_threshold and np.isfinite(c):
+                    current_best = min(current_best, c)
+                best_so_far.append(current_best if np.isfinite(current_best) else np.nan)
+
             plt.figure(figsize=(10, 6))
-            plt.plot(trials, costs, marker='o', linestyle='-', markersize=4)
+            plt.scatter(scatter_trials, scatter_costs, color="blue", marker='o', s=20, label="Cost")
+            plt.plot(trials, best_so_far, color="green", linewidth=1, linestyle="--", label="Best so far")
             plt.xlabel("Trial")
             plt.ylabel("Cost")
-            plt.title("Optimization Cost over Trials")
-            plt.grid(True, alpha=0.3)
+
+            # Manage x-axis ticks to avoid overcrowding
+            ax = plt.gca()
+            if len(trials) <= 15:
+                ax.set_xticks(trials)
+            else:
+                ax.xaxis.set_major_locator(MaxNLocator(nbins=15, integer=True))
+                plt.xticks(rotation=45)
+
+            # Manage y-axis ticks for readability
+            ax.yaxis.set_major_locator(MaxNLocator(nbins=10))
+
+            plot_task_name = task_name if task_name is not None else self.task_name
+            plot_method_name = method_name if method_name is not None else self.method_name
+
+            if plot_task_name and plot_method_name:
+                plt.title(f"{plot_task_name} - {plot_method_name}")
+            elif plot_task_name:
+                plt.title(f"{plot_task_name}")
+            elif plot_method_name:
+                plt.title(f"{plot_method_name}")
+            else:
+                plt.title("Optimization Cost over Trials")
+
+            plt.grid(False)
+            plt.legend()
             plt.tight_layout()
             
             plot_path = os.path.join(self.output_dir, filename)
