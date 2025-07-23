@@ -1,4 +1,6 @@
 import numpy as np
+from alignment_interface import LARGE_PENALTY
+import scipy.optimize
 
 def random_search(task, n_trials=100, logger=None):
     """Simple random optimizer to test the task interface."""
@@ -13,7 +15,7 @@ def random_search(task, n_trials=100, logger=None):
             cost = task.evaluate_objective()
         except Exception as e:
             print(f"Random search trial {i} failed: {e}")
-            cost = float("inf")
+            cost = LARGE_PENALTY
 
         print(f"Random search trial {i} DoFs: {candidate}")
         print(f"Random search trial {i} cost: {cost}")
@@ -47,7 +49,7 @@ def grid_search(task, points_per_dim=5, logger=None):
             cost = task.evaluate_objective()
         except Exception as e:
             print(f"Grid search trial {i} failed: {e}")
-            cost = float("inf")
+            cost = LARGE_PENALTY
         print(f"Grid search trial {i} DoFs: {candidate}")
         print(f"Grid search trial {i} cost: {cost}")
         print("--------------------------------")
@@ -83,7 +85,7 @@ def bayesian_optimization(task, n_calls=30, logger=None):
             cost = task.evaluate_objective()
         except Exception as e:
             print(f"Bayesian optimization trial {i} failed: {e}")
-            cost = float("inf")
+            cost = LARGE_PENALTY
         opt.tell(candidate, cost)
         print(f"Bayesian optimization trial {i} DoFs: {candidate}")
         print(f"Bayesian optimization trial {i} cost: {cost}")
