@@ -1,18 +1,17 @@
 from lcls_beamline_toolbox.models import mfx
-from alignment_interface import UndulatorPointingTask, BeamSteeringTask, TransfocatorTask
+from alignment_interface import UndulatorPointingTask, BeamSteeringTask, TransfocatorTask, VonHamosTask
 from simple_optimizer import random_search, grid_search, bayesian_optimization
 
 def main():
     # set up the simulator
     mfx_sim = mfx.MFX(E0=9000, N=256)
     mfx_sim.propagate()
-    #print(mfx_sim.mr1l4_pitch.wm())
 
     # create the alignment task
-    task = TransfocatorTask(mfx_sim)
+    task = VonHamosTask(mfx_sim)
 
     # run the optimizer
-    best_dofs, best_cost = grid_search(task, points_per_dim=5)
+    best_dofs, best_cost = bayesian_optimization(task, n_calls=30)
     print("Best DoFs:", best_dofs)
     print("Minimum Cost:", best_cost)
     print("--------------------------------")
