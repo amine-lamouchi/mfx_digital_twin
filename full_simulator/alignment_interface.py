@@ -154,7 +154,7 @@ class VonHamosTask(AlignmentTask):
         baseBL = vh.build_beamline(energy=sim.E0, beamH=self.beamH, beamV=self.beamV)
         self.center0 = baseBL.vonHamos01.center
         self.pitch0 = float(baseBL.vonHamos01.pitch)
-        self.yaw0 = float(baseBL.vonHamos01.yaw)
+        self.yaw0 = float(getattr(baseBL.vonHamos01, "yaw", 0.0))
         self.bounds = [
             (self.pitch0 + pitch_bounds[0], self.pitch0 + pitch_bounds[1]),
             (self.yaw0   + yaw_bounds[0],   self.yaw0   + yaw_bounds[1]),
@@ -171,7 +171,7 @@ class VonHamosTask(AlignmentTask):
         pitch_val, yaw_val, y_val = values
         bl = vh.build_beamline(energy=self.sim.E0, beamH=self.beamH, beamV=self.beamV)
         bl.vonHamos01.pitch = pitch_val
-        bl.vonHamos01.yaw = yaw_val
+        setattr(bl.vonHamos01, "yaw", yaw_val)
         cx0, _, cz0 = self.center0
         bl.vonHamos01.center = (cx0, y_val, cz0)
         try:
@@ -205,5 +205,11 @@ class VonHamosTask(AlignmentTask):
         return self.bounds
     
     def save_diagnostic(self, index, output_dir):
-        self.last_plot.saveName = f"{output_dir}/vonhamos_{index}"
-        self.last_plot.save()
+        if self.last_plot is not None and not self._propagation_failed:
+            try:
+                self.last_plot.saveName = f"{output_dir}/vonhamos_{index}"
+                self.last_plot.save()
+            except Exception as e:
+                print(f"[VonHamosTask] Failed to save diagnostic plot for trial {index}: {e}")
+        else:
+            print(f"[VonHamosTask] No diagnostic plot available for trial {index} (ray tracing failed)")

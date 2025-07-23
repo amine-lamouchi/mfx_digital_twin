@@ -1,32 +1,39 @@
 import numpy as np
 
-def random_search(task, n_trials=100):
+def random_search(task, n_trials=100, logger=None):
     """Simple random optimizer to test the task interface."""
     bounds = task.get_bounds()
     best_dofs = None
     best_cost = float("inf")
 
-    for _ in range(n_trials):
+    for i in range(n_trials):
         candidate = [np.random.uniform(low, high) for (low, high) in bounds]
         try:
             task.set_dofs(candidate)
             cost = task.evaluate_objective()
         except Exception as e:
-            print(f"Random search trial {_} failed: {e}")
+            print(f"Random search trial {i} failed: {e}")
             cost = float("inf")
 
-        print(f"Random search trial {_} DoFs: {candidate}")
-        print(f"Random search trial {_} cost: {cost}")
+        print(f"Random search trial {i} DoFs: {candidate}")
+        print(f"Random search trial {i} cost: {cost}")
         print("--------------------------------")
+
+        if logger:
+            logger.log(i, candidate, cost, task)
         
         if cost < best_cost:
             best_cost = cost
             best_dofs = candidate
 
+    if logger:
+        logger.save_csv()
+        logger.plot_cost_history()
+
     return best_dofs, best_cost
 
 
-def grid_search(task, points_per_dim=5):
+def grid_search(task, points_per_dim=5, logger=None):
     """Grid search optimizer for the task interface. Tries all combinations of evenly spaced points in each dimension."""
     bounds = task.get_bounds()
     grid_axes = [np.linspace(low, high, points_per_dim) for (low, high) in bounds]
@@ -44,13 +51,22 @@ def grid_search(task, points_per_dim=5):
         print(f"Grid search trial {i} DoFs: {candidate}")
         print(f"Grid search trial {i} cost: {cost}")
         print("--------------------------------")
+        
+        if logger:
+            logger.log(i, candidate, cost, task)
+            
         if cost < best_cost:
             best_cost = cost
             best_dofs = candidate
+
+    if logger:
+        logger.save_csv()
+        logger.plot_cost_history()
+
     return best_dofs, best_cost
 
 
-def bayesian_optimization(task, n_calls=30):
+def bayesian_optimization(task, n_calls=30, logger=None):
     """Bayesian optimization using scikit-optimize (skopt) for the task interface."""
     try:
         from skopt import Optimizer
@@ -72,9 +88,18 @@ def bayesian_optimization(task, n_calls=30):
         print(f"Bayesian optimization trial {i} DoFs: {candidate}")
         print(f"Bayesian optimization trial {i} cost: {cost}")
         print("--------------------------------")
+        
+        if logger:
+            logger.log(i, candidate, cost, task)
+            
         if cost < best_cost:
             best_cost = cost
             best_dofs = candidate
+
+    if logger:
+        logger.save_csv()
+        logger.plot_cost_history()
+
     return best_dofs, best_cost
 
 

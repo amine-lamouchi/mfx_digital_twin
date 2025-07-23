@@ -133,3 +133,4 @@ dmypy.json
 # scans and diagnostics
 full_simulator/vonhamos_scan_outputs/
 full_simulator/pitch_scan/
+full_simulator/experiments/
