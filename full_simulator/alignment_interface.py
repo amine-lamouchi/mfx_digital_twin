@@ -1,6 +1,11 @@
 import numpy as np
+# Von Hamos spectrometer utilities
 import vonhamos_spectrometer as vh
 import matplotlib.pyplot as plt
+
+# xrt runner for repeated ray-tracing with the same Plot objects
+import xrt.runner as xrtrun
+import xrt.backends.raycing.run as rrun
 
 # Large finite penalty value for failed propagations
 LARGE_PENALTY = 1e6
@@ -57,7 +62,10 @@ class UndulatorPointingTask(AlignmentTask):
         return np.sqrt(cx**2 + cy**2)
 
     def get_bounds(self):
-        return [(-2.5e-6, 2.5e-6), (-2.5e-6, 2.5e-6)]
+        ax_default = 0.0
+        ay_default = 0.0
+        return [(ax_default - 2.5e-6, ax_default + 2.5e-6), 
+                (ay_default - 2.5e-6, ay_default + 2.5e-6)]
     
     def save_diagnostic(self, index, output_dir):
         self.sim.beamline.hx2_shared.view_beam()
@@ -70,7 +78,7 @@ class BeamSteeringTask(AlignmentTask):
         return [self.sim.mr1l4_pitch.wm()]
 
     def set_dofs(self, values):
-        self.sim.mr1l4_pitch.mvr(values[0])
+        self.sim.mr1l4_pitch.mv(values[0])
         try:
             self.sim.propagate()
         except Exception as e:
@@ -90,7 +98,8 @@ class BeamSteeringTask(AlignmentTask):
         return np.abs(cx)
     
     def get_bounds(self):
-        return [(-2e-6, 2e-6)]
+        pitch_default = -0.000552
+        return [(pitch_default - 1.5e-6, pitch_default + 1.5e-6)]
     
     def save_diagnostic(self, index, output_dir):
         self.sim.beamline.DG1_YAG.view_beam()
@@ -111,14 +120,14 @@ class TransfocatorTask(AlignmentTask):
     def get_dofs(self):
         dofs = []
         for i, _ in self.enabled_crls:
-            dofs.append(self.sim.__getattr__(f"tfs_{i}_x").wm())
-            dofs.append(self.sim.__getattr__(f"tfs_{i}_y").wm())
+            dofs.append(getattr(self.sim, f"tfs_{i}_x").wm())
+            dofs.append(getattr(self.sim, f"tfs_{i}_y").wm())
         return dofs
 
     def set_dofs(self, values):
         for idx, (i, _) in enumerate(self.enabled_crls):
-            getattr(self.sim, f"tfs_{i}_x").mvr(values[2*idx])
-            getattr(self.sim, f"tfs_{i}_y").mvr(values[2*idx + 1])
+            getattr(self.sim, f"tfs_{i}_x").mv(values[2*idx])
+            getattr(self.sim, f"tfs_{i}_y").mv(values[2*idx + 1])
         try:
             self.sim.propagate()
         except Exception as e:
@@ -141,7 +150,11 @@ class TransfocatorTask(AlignmentTask):
         return np.sqrt(cx**2 + cy**2) + np.abs(wx - wy)
 
     def get_bounds(self):
-        return [(-5e-6, 5e-6)] * 2 * self.n_crls
+        bounds = []
+        for _ in range(self.n_crls):
+            bounds.append((-5e-6, 5e-6))
+            bounds.append((-5e-6, 5e-6))
+        return bounds
     
     def save_diagnostic(self, index, output_dir):
         self.sim.beamline.DG2_YAG.view_beam()
@@ -169,6 +182,9 @@ class VonHamosTask(AlignmentTask):
             (self.center0[1] + y_bounds[0], self.center0[1] + y_bounds[1])
         ]
         self.last_plot = None
+        # Define plots ONCE so axis limits remain identical across frames
+        self.plots = vh.define_plots()
+
         self._propagation_failed = False
         self.last_vals = [self.pitch0, self.yaw0, self.center0[1]]
 
@@ -183,10 +199,13 @@ class VonHamosTask(AlignmentTask):
         cx0, _, cz0 = self.center0
         bl.vonHamos01.center = (cx0, y_val, cz0)
         try:
-            vh.rrun.run_process = vh.run_process
-            plots = vh.define_plots()
-            vh.xrtrun.run_ray_tracing(plots=plots, beamLine=bl, backend="raycing")
-            self.last_plot = plots[0]
+            # Use common plot objects so axes stay fixed
+            rrun.run_process = vh.run_process
+            xrtrun.run_ray_tracing(plots=self.plots,
+                                   beamLine=bl,
+                                   backend="raycing",
+                                   repeats=1)
+            self.last_plot = self.plots[0]
             self._propagation_failed = False
         except Exception as e:
             print(f"[VonHamosTask] ray tracing failed: {e}")
@@ -217,6 +236,9 @@ class VonHamosTask(AlignmentTask):
             try:
                 self.last_plot.saveName = f"{output_dir}/vonhamos_{index}"
                 self.last_plot.save()
+                # Clean plots so next frame reuses same canvas but with new data
+                for p in self.plots:
+                    p.clean_plots()
             except Exception as e:
                 print(f"[VonHamosTask] Failed to save diagnostic plot for trial {index}: {e}")
         else:
